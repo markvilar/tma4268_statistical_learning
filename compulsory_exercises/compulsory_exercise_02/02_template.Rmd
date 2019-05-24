@@ -1,0 +1,161 @@
+---
+subtitle: "TMA4268 Statistical Learning V2019"
+title: "Compulsory exercise 2: Group XYZ"
+author: "NN1, NN2 and NN3"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document
+  #pdf_document
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(error=FALSE)
+knitr::opts_chunk$set(warning=FALSE)
+knitr::opts_chunk$set(message=FALSE)
+knitr::opts_chunk$set(results="hold")
+```
+
+```{r,eval=FALSE,echo=TRUE}
+install.packages("knitr") #probably already installed
+install.packages("rmarkdown") #probably already installed
+install.packages("bestglm")# for subset selection with categorical variables
+install.packages("glmnet")# for lasso
+install.packages("tree") #tree
+install.packages("randomForest") #for random forest
+install.packages("ElemStatLearn") #dataset in Problem 2
+BiocManager::install(c("pheatmap")) #heatmap in Problem 2
+```
+
+```{r,eval=FALSE}
+install.packages("ggplot2")
+install.packages("GGally") # for ggpairs
+install.packages("caret") #for confusion matrices
+install.packages("pROC") #for ROC curves
+install.packages("e1071") # for support vector machines
+install.packages("nnet") # for feed forward neural networks
+```
+
+# Problem 1: Regression [6 points]
+
+```{r}
+all=dget("https://www.math.ntnu.no/emner/TMA4268/2019v/data/diamond.dd")
+dtrain=all$dtrain
+dtest=all$dtest
+```
+
+**Q1**: Would you choose `price` or `logprice` as response variable? Justify your choice. Next, plot your choice of response pairwise with `carat`, `logcarat`, `color`, `clarity` and `cut`. Comment.
+
+Use the local regression model $\texttt{logprice} = \beta_0 + \beta_1 \texttt{carat}+ \beta_2 \texttt{carat}^2$ weighted by the tricube kernel $K_{i0}$. 
+
+**Q2:** What is the predicted price of a diamond weighting 1 carat. Use the closest 20% of the observations.  
+**Q3:** What choice of $\beta_1$, $\beta_2$ and $K_{i0}$ would result in KNN-regression?  
+
+**Q4:** Describe how you can perform model selection in regression with AIC as criterion.  
+**Q5:** What are the main differences between using AIC for model selection and using cross-validation (with mean squared test error MSE)?  
+**Q6:** See the code below for performing model selection with `bestglm()` based on AIC. What kind of contrast is used to represent `cut`, `color` and `clarity`? Write down the final best model and explain what you can interpret from the model.  
+**Q7:** Calculate and report the MSE of the test set using the best model (on the scale of `logprice`).  
+
+```{r,eval=FALSE}
+library(bestglm)
+ds=as.data.frame(within(dtrain,{
+  y=logprice    # setting reponse
+  logprice=NULL # not include as covariate
+  price=NULL    # not include as covariate
+  carat=NULL    # not include as covariate
+  }))
+fit=bestglm(Xy=ds, IC="AIC")$BestModel
+summary(fit)
+```
+
+**Q8:** Build a model matrix for the covariates `~logcarat+cut+clarity+color+depth+table+xx+yy+zz-1`. What is the dimension of this matrix?  
+**Q9:** Fit a lasso regression to the diamond data with `logprice` as the response and the model matrix given in Q8. How did you find the value to be used for the regularization parameter?  
+**Q10:** Calculate and report the MSE of the test set (on the scale of `logprice`).  
+
+**Q11:** A regression tree to model is built using a _greedy_ approach. What does that mean? Explain the strategy used for constructing a regression tree.  
+**Q12:** Is a regression tree a suitable method to handle both numerical and categorical covariates? Elaborate.  
+**Q13:** Fit a (full) regression tree to the diamond data with `logprice` as the response (and the same covariates as for c and d), and plot the result. Comment briefly on you findings.  
+**Q14:** Calculate and report the MSE of the test set (on the scale of `logprice`).  
+
+**Q15:** Explain the motivation behind bagging, and how bagging differs from random forest? What is the role of bootstrapping?  
+**Q16:** What are the parameter(s) to be set in random forest, and what are the rules for setting these?  
+**Q17:** Boosting is a popular method. What is the main difference between random forest and boosting?  
+**Q18:** Fit a random forest to the diamond data with `logprice` as the response (and the same covariates as before). Comment on your choice of parameter (as decribed in Q16).   
+**Q19:** Make a variable importance plot and comment on the plot. Calculate and report the MSE of the test set (on the scale of `logprice`).  
+
+**Q20:** Finally, compare the results from c (subset selection), d (lasso), e (tree) and f (random forest): Which method has given the best performance on the test set and which method has given you the best insight into the relationship between the price and the covariates?
+
+
+# Problem 2: Unsupervised learning [3 points]
+
+**Q21:** What is the definition of a principal component score, and how is the score related to the eigenvectors of the matrix ${\hat {\bf R}}$. 
+
+**Q22:** Explain what is given in the plot with title "First eigenvector". Why are there only $n=64$ eigenvectors and $n=64$ principal component scores?
+
+**Q23:** How many principal components are needed to explain 80% of the total variance in ${\bf Z}$? Why is `sum(pca$sdev^2)=p`?  
+
+**Q24**: Study the PC1 vs PC2 plot, and comment on the groupings observed. What can you say about the placement of the `K262`, `MCF7` and `UNKNOWN` samples? Produce the same plot for two other pairs of PCs and comment on your observations.
+
+
+```{r}
+library(ElemStatLearn)
+X=t(nci) #n times p matrix
+table(rownames(X))
+ngroups=length(table(rownames(X)))
+cols=rainbow(ngroups)
+cols[c(4,5,7,8,14)] = "black"
+pch.vec = rep(4,14)
+pch.vec[c(4,5,7,8,14)] = 15:19
+
+colsvsnames=cbind(cols,sort(unique(rownames(X))))
+colsamples=cols[match(rownames(X),colsvsnames[,2])] 
+pchvsnames=cbind(pch.vec,sort(unique(rownames(X))))
+pchsamples=pch.vec[match(rownames(X),pchvsnames[,2])]
+
+Z=scale(X)
+
+pca=prcomp(Z)
+plot(pca$x[,1],pca$x[,2],xlab="PC1",ylab="PC2",pch=pchsamples,col=colsamples)
+legend("bottomright",legend = colsvsnames[,2],cex=0.55,col=cols,pch = pch.vec)
+
+plot(1:dim(X)[2],pca$rotation[,1],type="l",xlab="genes",ylab="weight",main="First eigenvector")
+```
+
+**Q25:**: Explain what it means to use Euclidean distance and average linkage for hierarchical clustering. 
+
+**Q26:**: Perform hierarchical clustering with Euclidean distance and average linkage on the scaled gene expression in `Z`. Observe where our samples labelled as K562, MCF7 and `UNKNOWN` are placed in the dendrogram. Which conclusions can you draw from this?
+
+**Q27:**: Study the R-code and plot below. Here we have performed hierarchical clustering based on thefirst 64 principal component instead of the gene expression data in `Z`. What is the difference between using all the gene expression data and using the first 64 principal components in the clustering? We have plotted the dendrogram together with a heatmap of the data. Explain what is shown in the heatmap. What is given on the horizontal axis, vertical axis, value in the pixel grid?
+
+```{r}
+library(pheatmap)
+npcs=64 
+pheatmap(pca$x[,1:npcs],scale="none",cluster_col=FALSE,cluster_row=TRUE,clustering_distance_rows = "euclidean",clustering_method="average",fontsize_row=5,fontsize_col=5)
+```
+
+# Problem 3: Flying solo with diabetes data [6 points]
+
+```{r}
+flying=dget("https://www.math.ntnu.no/emner/TMA4268/2019v/data/flying.dd")
+ctrain=flying$ctrain
+ctest=flying$ctest
+```
+
+**Q28:** Start by getting to know the _training data_, by producing summaries and plots. Write a few sentences about what you observe and include your top 3 informative plots and/or outputs.
+
+**Q29:** Use different methods to analyse the data. In particular use 
+
+* one method from Module 4: Classification
+* one method from Module 8: Trees (and forests)
+* one method from Module 9: Support vector machines and, finally
+* one method from Module 11: Neural networks
+
+For each method you 
+
+* clearly write out the model and model assumptions for the method
+* explain how any tuning parameters are chosen or model selection is performed
+* report (any) insight into the interpretation of the fitted model
+* evaluate the model using the test data, and report misclassifiation rate (cut-off 0.5 on probability) and plot ROC-curves and give the AUC (for method where class probabilities are given).
+
+**Q30:** Conclude with choosing a winning method, and explain why you mean that this is the winning method.
+
