@@ -1,4 +1,4 @@
-# My repository for the NTNU course - "TMA4268 - Statistical Learning"
+# My repository for the NTNU course: "TMA4268 - Statistical Learning"
 
 The repository includes:
 - 10 module compendiums; one for each module with the exception of module 6 & 10
